@@ -4,7 +4,7 @@ from typing import Type, Optional
 from datetime import timedelta, datetime
 import os
 from elasticsearch import Elasticsearch
-import re
+import fnmatch
 
 elasticsearch_usr = os.environ.get("ELK_USR", "")
 elasticsearch_pwd = os.environ.get("ELK_PWD", "")
@@ -54,13 +54,8 @@ FIELD_MAPPINGS = {
     "vpn_abnormal_whole*": {
         "ip_field": "srcIp",
         "timestamp_field": "create_date"
-    },
-    #"security_system_nginx*"
-    # 默认映射
-    "default": {
-        "ip_field": ["IP", "ip", "srcIP", "dstIP", "client_ip", "remote_ip"],
-        "timestamp_field": ["create_date", "create_time", "timestamp", "log_time", "event_time", "time"]
     }
+    #"security_system_nginx*"
 }
 
 class LogRetrievalToolInput(BaseModel):
@@ -76,24 +71,18 @@ class LogRetrievalBasedOnIp(BaseTool):
     description: str = "基于输入的目标IP进行查询，然后把查询到日志的内容返回"
     args_schema: Type[BaseModel] = LogRetrievalToolInput
 
-    def _get_field_mapping(self, index_pattern: str) -> dict[str, any]:
+    def _get_field_mapping(self, index_name: str):
         """获取索引的字段映射配置"""
         # 按优先级匹配映射
-        for pattern, mapping in FIELD_MAPPINGS.items():
-            if pattern == "default":
-                continue
+        for pattern, fields in FIELD_MAPPINGS.items():
+            if fnmatch.fnmatch(index_name, pattern):
+                return fields
 
-            # 支持通配符匹配
-            if "*" in pattern:
-                # 将通配符模式转换为正则表达式
-                regex_pattern = pattern.replace("*", ".*")
-                if re.match(regex_pattern, index_pattern):
-                    return mapping
-            elif pattern == index_pattern:
-                return mapping
-
-        # 返回默认映射
-        return FIELD_MAPPINGS["default"]
+            # 默认兜底（防止报错）
+        return {
+            "ip_field": "IP",
+            "timestamp_field": "create_date"
+        }
 
     def _format_to_markdown(self, data_list):
         """将字典列表格式化为Markdown表格"""
@@ -147,27 +136,17 @@ class LogRetrievalBasedOnIp(BaseTool):
         es = Elasticsearch([url], basic_auth=(elasticsearch_usr, elasticsearch_pwd))
 
         # 检测字段
-        ip_field, time_field = self._get_field_mapping(Index)
+        field_mapping = self._get_field_mapping(Index)
+        ip_field = field_mapping["ip_field"]
+        time_field = field_mapping["timestamp_field"]
 
         if not ip_field:
-            # 获取配置的候选字段
-            field_config = self._get_field_mapping(Index)
-            ip_candidates = field_config["ip_field"]
-            if isinstance(ip_candidates, str):
-                ip_candidates = [ip_candidates]
-
             return f"错误: 在索引 {Index} 中未找到IP字段。"
 
         if not time_field:
-            # 获取配置的候选字段
-            field_config = self._get_field_mapping(Index)
-            time_candidates = field_config["timestamp_field"]
-            if isinstance(time_candidates, str):
-                time_candidates = [time_candidates]
-
             return f"错误: 在索引 {Index} 中未找到时间字段。"
 
-        print(f"检测到IP字段: {ip_field}, 时间字段: {time_field}")
+        print(f"[INFO] Using ip_field={ip_field}, time_field={time_field}")
 
         # 构建查询
         # 处理IP字段可能是列表的情况
