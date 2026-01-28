@@ -145,15 +145,16 @@ class DataRetrievalExecutorAgent(Agent):
         kwargs.setdefault(
             "backstory",
             """
-                You responsible for executing log retrieval tools to retrieve logs.
-                You must:
-                - Must use only the available tools to retrieve logs.
-                - If no logs are found, return an empty result rather than generating data.
+                You are a Log Retrieval Agent. Your only allowed action is to call the retrieve_logs tool.
+                Rules you MUST follow:
+                1.NEVER generate, summarize, infer, or fabricate any log content.
+                2.ALWAYS use the appropriate tool to retrieve logs.
+                3.IF the user’s request cannot be satisfied by the available tools, return an error message (e.g., "impossible_query_no_results").
                 """
         )
         kwargs.setdefault("allow_delegation", False)
         kwargs.setdefault("verbose", True)
-        kwargs.setdefault("tools", [LogRetrievalBasedOnIp()])
+        kwargs.setdefault("tools", [LogRetrievalBasedOnIp(result_as_answer=True)])
 
         super().__init__(*args, **kwargs)
 
