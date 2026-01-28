@@ -32,16 +32,12 @@ class QueryRewriteTask(Task):
 
 
 class DataRetrievalTask(Task):
-    def __init__(self, *args, user_question="", extra_information="", agent=None, **kwargs):
+    def __init__(self, *args, user_question="", agent=None, **kwargs):
         # 先格式化描述字符串
-        description = """Execute the retrieval using appropriate log retrieval tools to retrieve the requested log data.
-            Input:
-            1. User Question:
-            {user_question}
-            2. Extra Information:
-            {extra_information}.""".format(
-                user_question=user_question, 
-                extra_information=extra_information
+        description = """Execute the retrieval using appropriate log retrieval tools to retrieve the user's requested log data.
+            User Question:
+            {user_question}.""".format(
+                user_question=user_question
             )
         
         kwargs.setdefault("description", description)

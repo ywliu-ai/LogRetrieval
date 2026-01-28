@@ -131,26 +131,24 @@ class DataRetrievalExecutorAgent(Agent):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault(
             "role",
-            "Log Retrieval Execution Agent"
+            "Log Retrieval Agent"
         )
 
         kwargs.setdefault(
             "goal",
             (
-                "Execute log retrieval tasks by leveraging tools based on the structured log retrieval specification"
-                "and retrieve the requested log data or analysis results."
+                "Execute log retrieval tools based on the structured log retrieval specification"
+                "and return the requested log data."
             )
         )
 
         kwargs.setdefault(
             "backstory",
             """
-                You are a log retrieval execution agent responsible for carrying out actual log retrieval tasks..
+                You responsible for executing log retrieval tools to retrieve logs.
                 You must:
                 - Must use only the available tools to retrieve logs.
-
-                Output Format:
-                - Raw Data:
+                - If no logs are found, return an empty result rather than generating data.
                 """
         )
         kwargs.setdefault("allow_delegation", False)

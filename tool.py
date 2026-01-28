@@ -68,7 +68,7 @@ class LogRetrievalToolInput(BaseModel):
     
 class LogRetrievalBasedOnIp(BaseTool):
     name: str = "LogRetrievalBasedOnIp"
-    description: str = "基于输入的目标IP进行查询，然后把查询到日志的内容返回"
+    description: str = """灵活的日志、告警、安全事件检索工具：可基于输入的IP查询并返回匹配的内容；即使未提供IP参数，也能返回最近检索到的内容，确保在各种场景下都能使用\n\n    When to use:\n    - 当需要根据特定源IP和目标IP检索信息时\n    - 当需要查看最近的数据活动概况时\n    - 当需要调查特定IP地址相关的日志事件时\n    - 当需要分析IP间的关联数据行为时\n    - 当需要通用数据信息检索服务时（无需指定具体IP）"""
     args_schema: Type[BaseModel] = LogRetrievalToolInput
 
     def _get_field_mapping(self, index_name: str):

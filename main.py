@@ -19,7 +19,7 @@ load_dotenv()
 api_key = os.environ.get("OPENAI_API_KEY", "")
 model_name = os.environ.get("OPENAI_MODEL_NAME", "")
 endpoint = os.environ.get("OPENAI_ENDPOINT", "")
-llm = CustomLLM(api_key=api_key, model=model_name, endpoint=endpoint, temperature=0.0, top_p=1.0)
+llm = CustomLLM(api_key=api_key, model=model_name, endpoint=endpoint)
 
 class MainFlowState(BaseModel):
     userInput: str = Field("", description="The user input for the flow")
@@ -56,7 +56,6 @@ class MainFlow(Flow[MainFlowState]):
 
         retrieval_task = DataRetrievalTask(
             user_question=RewriteQuery,
-            extra_information=self.extra_information,
             agent=Executor  # Writer leads, but can delegate research to researcher
         )
         crew = Crew(
@@ -74,7 +73,7 @@ class MainFlow(Flow[MainFlowState]):
 
 def main():
     state = {
-        "userInput": "提取10.100.31.106在过去一天的告警日志"
+        "userInput": "提取114.232.203.231在2026年1月27日在邮件系统中的行为日志"
     }
     flow = MainFlow()
     result = flow.kickoff(state)
