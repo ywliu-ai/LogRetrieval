@@ -95,49 +95,6 @@ class LogRetrievalBasedOnIp(BaseTool):
         # 返回默认映射
         return FIELD_MAPPINGS["default"]
 
-    def _detect_fields_from_mapping(self, es: Elasticsearch, index: str) -> tuple:
-        """从索引映射中检测IP和时间字段"""
-        try:
-            # 获取索引的映射信息
-            mapping = es.indices.get_mapping(index=index)
-
-            # 获取这个索引的配置
-            field_config = self._get_field_mapping(index)
-
-            # 从映射中提取所有字段
-            all_fields = []
-            for index_mapping in mapping.values():
-                if "mappings" in index_mapping and "properties" in index_mapping["mappings"]:
-                    all_fields.extend(index_mapping["mappings"]["properties"].keys())
-
-            # 查找存在的IP字段
-            ip_field = None
-            ip_candidates = field_config["ip_field"]
-            if isinstance(ip_candidates, str):
-                ip_candidates = [ip_candidates]
-
-            for candidate in ip_candidates:
-                if candidate in all_fields:
-                    ip_field = candidate
-                    break
-
-            # 查找存在的时间字段
-            time_field = None
-            time_candidates = field_config["timestamp_field"]
-            if isinstance(time_candidates, str):
-                time_candidates = [time_candidates]
-
-            for candidate in time_candidates:
-                if candidate in all_fields:
-                    time_field = candidate
-                    break
-
-            return ip_field, time_field, all_fields
-
-        except Exception as e:
-            print(f"Warning: Failed to detect fields from mapping: {e}")
-            return None, None, []
-
     def _format_to_markdown(self, data_list):
         """将字典列表格式化为Markdown表格"""
 
@@ -190,7 +147,7 @@ class LogRetrievalBasedOnIp(BaseTool):
         es = Elasticsearch([url], basic_auth=(elasticsearch_usr, elasticsearch_pwd))
 
         # 检测字段
-        ip_field, time_field, all_fields = self._detect_fields_from_mapping(es, Index)
+        ip_field, time_field = self._get_field_mapping(Index)
 
         if not ip_field:
             # 获取配置的候选字段
@@ -199,7 +156,7 @@ class LogRetrievalBasedOnIp(BaseTool):
             if isinstance(ip_candidates, str):
                 ip_candidates = [ip_candidates]
 
-            return f"错误: 在索引 {Index} 中未找到IP字段。候选字段: {ip_candidates}。索引中实际存在的字段: {all_fields[:20]}{'...' if len(all_fields) > 20 else ''}"
+            return f"错误: 在索引 {Index} 中未找到IP字段。"
 
         if not time_field:
             # 获取配置的候选字段
@@ -208,7 +165,7 @@ class LogRetrievalBasedOnIp(BaseTool):
             if isinstance(time_candidates, str):
                 time_candidates = [time_candidates]
 
-            return f"错误: 在索引 {Index} 中未找到时间字段。候选字段: {time_candidates}。索引中实际存在的字段: {all_fields[:20]}{'...' if len(all_fields) > 20 else ''}"
+            return f"错误: 在索引 {Index} 中未找到时间字段。"
 
         print(f"检测到IP字段: {ip_field}, 时间字段: {time_field}")
 
