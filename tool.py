@@ -4,10 +4,64 @@ from typing import Type, Optional
 from datetime import timedelta, datetime
 import os
 from elasticsearch import Elasticsearch
+import re
 
 elasticsearch_usr = os.environ.get("ELK_USR", "")
 elasticsearch_pwd = os.environ.get("ELK_PWD", "")
 
+FIELD_MAPPINGS = {
+    "arp_vpn*": {
+        "ip_field": "ip",
+        "timestamp_field": "createDate"
+    },
+    #"arp_firewall*"
+    "cas_apache_abnormal*": {
+        "ip_field": "iP",  # 支持多个可能的IP字段
+        "timestamp_field": "create_date"
+    },
+    "cas_nginx_abnormal*": {
+        "ip_field": "iP",
+        "timestamp_field": "create_date"
+    },
+    "email_access*": {
+        "ip_field": "IP",
+        "timestamp_field": "create_date"
+    },
+    "email_user_action_2026*": {
+        "ip_field": "IP",
+        "timestamp_field": "create_date"
+    },
+    "email_firewall*": {
+        "ip_field": ["srcIP", "dstIP"],
+        "timestamp_field": "create_date"
+    },
+    "kjyp_xserver_acc*": {
+        "ip_field": "ip",
+        "timestamp_field": "datetime"
+    },
+    "pass_access*": {
+        "ip_field": "clientIp",
+        "timestamp_field": "create_date"
+    },
+    "pass_user_action_2026*": {
+        "ip_field": "IP",
+        "timestamp_field": "create_date"
+    },
+    "pass_security_bastion*": {
+        "ip_field": "devIp",
+        "timestamp_field": "operationTime"
+    },
+    "vpn_abnormal_whole*": {
+        "ip_field": "srcIp",
+        "timestamp_field": "create_date"
+    },
+    #"security_system_nginx*"
+    # 默认映射
+    "default": {
+        "ip_field": ["IP", "ip", "srcIP", "dstIP", "client_ip", "remote_ip"],
+        "timestamp_field": ["create_date", "create_time", "timestamp", "log_time", "event_time", "time"]
+    }
+}
 
 class LogRetrievalToolInput(BaseModel):
     """Input schema for MyCustomTool."""
@@ -19,28 +73,96 @@ class LogRetrievalToolInput(BaseModel):
     
 class LogRetrievalBasedOnIp(BaseTool):
     name: str = "LogRetrievalBasedOnIp"
-    description: str = "基于输入告警的目标IP进行查询，然后把查询到日志的内容返回"
+    description: str = "基于输入的目标IP进行查询，然后把查询到日志的内容返回"
     args_schema: Type[BaseModel] = LogRetrievalToolInput
+
+    def _get_field_mapping(self, index_pattern: str) -> dict[str, any]:
+        """获取索引的字段映射配置"""
+        # 按优先级匹配映射
+        for pattern, mapping in FIELD_MAPPINGS.items():
+            if pattern == "default":
+                continue
+
+            # 支持通配符匹配
+            if "*" in pattern:
+                # 将通配符模式转换为正则表达式
+                regex_pattern = pattern.replace("*", ".*")
+                if re.match(regex_pattern, index_pattern):
+                    return mapping
+            elif pattern == index_pattern:
+                return mapping
+
+        # 返回默认映射
+        return FIELD_MAPPINGS["default"]
+
+    def _detect_fields_from_mapping(self, es: Elasticsearch, index: str) -> tuple:
+        """从索引映射中检测IP和时间字段"""
+        try:
+            # 获取索引的映射信息
+            mapping = es.indices.get_mapping(index=index)
+
+            # 获取这个索引的配置
+            field_config = self._get_field_mapping(index)
+
+            # 从映射中提取所有字段
+            all_fields = []
+            for index_mapping in mapping.values():
+                if "mappings" in index_mapping and "properties" in index_mapping["mappings"]:
+                    all_fields.extend(index_mapping["mappings"]["properties"].keys())
+
+            # 查找存在的IP字段
+            ip_field = None
+            ip_candidates = field_config["ip_field"]
+            if isinstance(ip_candidates, str):
+                ip_candidates = [ip_candidates]
+
+            for candidate in ip_candidates:
+                if candidate in all_fields:
+                    ip_field = candidate
+                    break
+
+            # 查找存在的时间字段
+            time_field = None
+            time_candidates = field_config["timestamp_field"]
+            if isinstance(time_candidates, str):
+                time_candidates = [time_candidates]
+
+            for candidate in time_candidates:
+                if candidate in all_fields:
+                    time_field = candidate
+                    break
+
+            return ip_field, time_field, all_fields
+
+        except Exception as e:
+            print(f"Warning: Failed to detect fields from mapping: {e}")
+            return None, None, []
 
     def _format_to_markdown(self, data_list):
         """将字典列表格式化为Markdown表格"""
 
-        # 获取表头
-        d1 = data_list[0]
-        keys = d1.keys()
-        headers = list(keys)
+        if not data_list:
+            return ""
 
-        # 构建表头行
+        # 收集所有字典中出现过的键
+        all_keys = []
+        seen = set()
+
+        for item in data_list:
+            for key in item.keys():
+                if key not in seen:
+                    seen.add(key)
+                    all_keys.append(key)
+
+        headers = all_keys
         markdown = "| " + " | ".join(headers) + " |\n"
-
-        # 构建分隔行
         markdown += "| " + " | ".join(["---"] * len(headers)) + " |\n"
 
-        # 构建数据行
         for item in data_list:
             row = []
             for header in headers:
-                value = item[header]
+                # 使用get方法，如果键不存在则返回空字符串
+                value = item.get(header, "")
                 row.append(str(value))
             markdown += "| " + " | ".join(row) + " |\n"
 
@@ -48,8 +170,8 @@ class LogRetrievalBasedOnIp(BaseTool):
 
     def _run(self, Ip: str, Index: str, StartTime: Optional[str] = None, EndTime: Optional[str] = None) -> str:
         url = "http://159.226.16.247:9200/"
-        print("Using Elasticsearch username:", elasticsearch_usr)
-        print("Using Elasticsearch password:", elasticsearch_pwd)
+        #print("Using Elasticsearch username:", elasticsearch_usr)
+        #print("Using Elasticsearch password:", elasticsearch_pwd)
         # 注意：这里需要通过其他方式获取默认时间，因为无法直接在类上调用实例方法
         if StartTime is None:
             now = datetime.now()
@@ -64,49 +186,88 @@ class LogRetrievalBasedOnIp(BaseTool):
             EndTime = int(datetime.strptime(EndTime, "%Y-%m-%d %H:%M:%S").timestamp())
 
         print("Using start time:", StartTime, "Using end time:", EndTime)
+
+        es = Elasticsearch([url], basic_auth=(elasticsearch_usr, elasticsearch_pwd))
+
+        # 检测字段
+        ip_field, time_field, all_fields = self._detect_fields_from_mapping(es, Index)
+
+        if not ip_field:
+            # 获取配置的候选字段
+            field_config = self._get_field_mapping(Index)
+            ip_candidates = field_config["ip_field"]
+            if isinstance(ip_candidates, str):
+                ip_candidates = [ip_candidates]
+
+            return f"错误: 在索引 {Index} 中未找到IP字段。候选字段: {ip_candidates}。索引中实际存在的字段: {all_fields[:20]}{'...' if len(all_fields) > 20 else ''}"
+
+        if not time_field:
+            # 获取配置的候选字段
+            field_config = self._get_field_mapping(Index)
+            time_candidates = field_config["timestamp_field"]
+            if isinstance(time_candidates, str):
+                time_candidates = [time_candidates]
+
+            return f"错误: 在索引 {Index} 中未找到时间字段。候选字段: {time_candidates}。索引中实际存在的字段: {all_fields[:20]}{'...' if len(all_fields) > 20 else ''}"
+
+        print(f"检测到IP字段: {ip_field}, 时间字段: {time_field}")
+
+        # 构建查询
+        # 处理IP字段可能是列表的情况
+        if isinstance(ip_field, list):
+            # 如果有多个可能的IP字段，使用should查询
+            ip_conditions = []
+            for field in ip_field:
+                ip_conditions.append({"term": {field: Ip}})
+            ip_query = {"bool": {"should": ip_conditions, "minimum_should_match": 1}}
+        else:
+            # 单个IP字段
+            ip_query = {"term": {ip_field: Ip}}
+
+        # 处理时间范围查询
+        time_query = {
+            "range": {
+                time_field: {
+                    "gte": str(StartTime),
+                    "lte": str(EndTime)
+                }
+            }
+        }
+
         query = {
             "query": {
                 "bool": {
-                    "must": [
-                                {
-                                   "term": {
-                                        "IP": Ip
-                                    }
-                                },
-                                {
-                                    "range": {
-                                        "create_date": {
-                                                "gte": str(StartTime),
-                                                "lte": str(EndTime)
-                                        }
-                                    }
-                                } 
-                    ]
+                    "must": [ip_query, time_query]
                 }
             },
             "from": 0
         }
-        es = Elasticsearch([url],basic_auth=(elasticsearch_usr,elasticsearch_pwd))
-        print("Using query:", query)
-        response = es.search(index=Index, body=query, size=10)
-        # 提取命中的数据
-        hits = response['hits']['hits']
-        if hits:
-            # 提取源数据并转换为列表格式
-            data_list = [hit['_source'] for hit in hits]
-            # 将结果格式化为markdown表格
-            print("Using markdown_result:", data_list)
-            markdown_result = self._format_to_markdown(data_list)
-            return markdown_result
-        else:
-            return f"在索引 {Index} 中未找到匹配 IP {Ip} 的日志数据"
+
+        print(f"使用的查询条件: {query}")
+
+        try:
+            response = es.search(index=Index, body=query, size=5000, scroll='2m')
+
+            # 提取命中的数据
+            hits = response['hits']['hits']
+            if hits:
+                # 提取源数据并转换为列表格式
+                data_list = [hit['_source'] for hit in hits]
+                # 将结果格式化为markdown表格
+                markdown_result = self._format_to_markdown(data_list)
+                return f"找到 {len(hits)} 条记录:\n\n" + markdown_result
+            else:
+                return f"在索引 {Index} 中未找到匹配 IP {Ip} 的日志数据"
+
+        except Exception as e:
+            return f"查询失败: {str(e)}"
 
 
 def main():
     # 示例：使用新工具类
     tool = LogRetrievalBasedOnIp()
     # 如果提供时间参数，则使用提供的参数；否则将使用默认的过去24小时
-    result = tool._run(Ip="10.100.31.106", Index="pass_user_action_2026*")
+    result = tool._run(Ip="49.85.111.170", Index="email_user_action_2026*")
     print(result)
 if __name__ == "__main__":
     main()
