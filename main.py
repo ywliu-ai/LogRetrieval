@@ -74,8 +74,7 @@ class MainFlow(Flow[MainFlowState]):
 
 def main():
     state = {
-        #"userInput": "提取10.100.31.106在过去一天的告警日志"
-        #"userInput": "查询邮箱cli@cnic.cn在2026年1月28日登录次数"
+        "userInput": "提取10.100.31.106在过去一天的告警日志"
     }
     flow = MainFlow()
     result = flow.kickoff(state)
