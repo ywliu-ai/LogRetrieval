@@ -95,9 +95,6 @@ class Analyzer:
             {"name": "security_system_nginx*",
              "description": "科技云盘、攻坚平台的nginx日志",
             },
-            {"name": "security_hills_ids_*",
-             "description": "安全厂商山石检测系统中流量告警日志",
-            },
         ]
         documents = []
         for doc in self.docs:
