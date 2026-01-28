@@ -65,7 +65,7 @@ class Analyzer:
             {"name": "cas_apache_abnormal*",
              "description": "网站群apache服务器异常",
             },
-            {"name": "cas_apache_abnormal*",
+            {"name": "cas_nginx_abnormal*",
              "description": "网站群nginx服务器异常",
              },
             {"name": "email_access*",
