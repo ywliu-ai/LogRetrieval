@@ -3,19 +3,23 @@ import requests
 from langchain.embeddings.base import Embeddings
 from langchain_chroma import Chroma
 import uuid
+import os
 
-OPENAI_API_KEY = "bd4e0cd0cd0b49e4ca7ad1767baadf3a09cbab24f7aa6a9a8486cd7e3b9d9eaf"
-OPENAI_ENDPOINT = "https://uni-api.cstcloud.cn/v1/embeddings"
-OPENAI_MODEL_NAME = "bge-large-zh:latest"
-# OPENAI_API_KEY = "988a611b0c5abe21a576d71815821c918088dc6a50af1aac4ed88a387b43e5ee"
+from dotenv import load_dotenv
+
+load_dotenv()
+
+api_key = os.environ.get("EMBEDDING_OPENAI_API_KEY", "")
+model_name = os.environ.get("EMBEDDING_OPENAI_MODEL_NAME", "")
+endpoint = os.environ.get("EMBEDDING_OPENAI_ENDPOINT", "")
 
 class EmbeddingService:
     """嵌入向量服务类"""
     
     def __init__(self):
-        self.api_url = OPENAI_ENDPOINT
-        self.api_token = OPENAI_API_KEY  # API密钥应该赋值给api_token
-        self.model_name = OPENAI_MODEL_NAME  # 模型名称应该赋值给model_name
+        self.api_url = endpoint
+        self.api_token = api_key  # API密钥应该赋值给api_token
+        self.model_name = model_name  # 模型名称应该赋值给model_name
     
     def get_embedding(self, text: str) -> List[float]:
         """获取文本嵌入向量"""
@@ -163,3 +167,12 @@ class Analyzer:
             return {"index_name":"未找到相关索引"}
 
 
+
+def main():
+    analyzer = Analyzer()
+    question = "我想查询ARP系统的用户行为日志，应该使用哪个索引呢？"
+    result = analyzer.analyze(question)
+    print(result)
+
+if __name__ == "__main__":
+    main()
