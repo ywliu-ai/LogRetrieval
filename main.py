@@ -31,8 +31,8 @@ class MainFlow(Flow[MainFlowState]):
 
     @start()
     def QueryRewrite(self):
-        # analyzer = Analyzer()
-        # self.extra_information = analyzer.analyze(self.state.userInput)
+        analyzer = Analyzer()
+        self.extra_information = analyzer.analyze(self.state.userInput)
         self.extra_information = {"所需要的日志可能包含在index_name中": "email_user_action_2026*"}
         agent = QueryRewriterAgent(llm=llm)
         rewrite_task = QueryRewriteTask(
