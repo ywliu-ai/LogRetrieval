@@ -8,6 +8,27 @@ import fnmatch
 
 elasticsearch_usr = os.environ.get("ELK_USR", "")
 elasticsearch_pwd = os.environ.get("ELK_PWD", "")
+url_247 = os.environ.get("URL247", "")
+url_191 = os.environ.get("URL191", "")
+
+ES_INDEX_ROUTER = {
+    "arp_vpn*": url_247,
+    "cas_apache_abnormal*": url_247,
+    "cas_nginx_abnormal*": url_247,
+    "email_access*": url_247,
+    "email_user_action_2026*": url_247,
+    "email_firewall*": url_247,
+    "kjyp_xserver_acc*": url_247,
+    "pass_access*": url_247,
+    "pass_user_action_2026*": url_247,
+    "pass_security_bastion*": url_247,
+    "vpn_abnormal_whole*": url_247,
+    "cnic_system_access": url_191,
+    "cnic_system_assets": url_191,
+    "sangfor_edr*": url_191,
+    "znt_comprehensive_result_v4": url_191,
+    "znt_comprehensive_result_zuduan": url_191,
+}
 
 FIELD_MAPPINGS = {
     "arp_vpn*": {
@@ -54,8 +75,22 @@ FIELD_MAPPINGS = {
     "vpn_abnormal_whole*": {
         "ip_field": "srcIp",
         "timestamp_field": "create_date"
-    }
+    },
     #"security_system_nginx*"
+    #"cnic_system_access"
+    #"cnic_system_assets"
+    "sangfor_edr*": {
+        "ip_field": "iplist",
+        "timestamp_field": "@timestamp"
+    },
+    "znt_comprehensive_result_v4": {
+        "ip_field": ["originalInfo.src_ip", "originalInfo.dst_ip"],
+        "timestamp_field": "originalInfo.timestrings"
+    },
+    "znt_comprehensive_result_zuduan": {
+        "ip_field": ["originalInfo.src_ip", "originalInfo.dst_ip"],
+        "timestamp_field": "originalInfo.timestring"
+    },
 }
 
 class LogRetrievalToolInput(BaseModel):
@@ -71,6 +106,12 @@ class LogRetrievalBasedOnIp(BaseTool):
     description: str = """灵活的日志、告警、安全事件检索工具：可基于输入的IP查询并返回匹配的内容；即使未提供IP参数，也能返回最近检索到的内容，确保在各种场景下都能使用\n\n    When to use:\n    - 当需要根据特定源IP和目标IP检索信息时\n    - 当需要查看最近的数据活动概况时\n    - 当需要调查特定IP地址相关的日志事件时\n    - 当需要分析IP间的关联数据行为时\n    - 当需要通用数据信息检索服务时（无需指定具体IP）"""
     args_schema: Type[BaseModel] = LogRetrievalToolInput
 
+    def _get_es_url(self, index_name: str):
+        for pattern, url in ES_INDEX_ROUTER.items():
+            if fnmatch.fnmatch(index_name, pattern):
+                return url
+        raise ValueError(f"No ES url found for index: {index_name}")
+
     def _get_field_mapping(self, index_name: str):
         """获取索引的字段映射配置"""
         # 按优先级匹配映射
@@ -78,7 +119,7 @@ class LogRetrievalBasedOnIp(BaseTool):
             if fnmatch.fnmatch(index_name, pattern):
                 return fields
 
-            # 默认兜底（防止报错）
+            # 默认（防止报错）
         return {
             "ip_field": "IP",
             "timestamp_field": "create_date"
@@ -115,7 +156,7 @@ class LogRetrievalBasedOnIp(BaseTool):
         return markdown
 
     def _run(self, Ip: str, Index: str, StartTime: Optional[str] = None, EndTime: Optional[str] = None) -> str:
-        url = "http://159.226.16.247:9200/"
+        #url = "http://159.226.16.247:9200/"
         #print("Using Elasticsearch username:", elasticsearch_usr)
         #print("Using Elasticsearch password:", elasticsearch_pwd)
         # 注意：这里需要通过其他方式获取默认时间，因为无法直接在类上调用实例方法
@@ -132,8 +173,11 @@ class LogRetrievalBasedOnIp(BaseTool):
             EndTime = int(datetime.strptime(EndTime, "%Y-%m-%d %H:%M:%S").timestamp())
 
         print("Using start time:", StartTime, "Using end time:", EndTime)
-
-        es = Elasticsearch([url], basic_auth=(elasticsearch_usr, elasticsearch_pwd))
+        es_url = self._get_es_url(Index)
+        es = Elasticsearch(
+            [es_url],
+            basic_auth=(elasticsearch_usr, elasticsearch_pwd)
+        )
 
         # 检测字段
         field_mapping = self._get_field_mapping(Index)
@@ -203,7 +247,7 @@ def main():
     # 示例：使用新工具类
     tool = LogRetrievalBasedOnIp()
     # 如果提供时间参数，则使用提供的参数；否则将使用默认的过去24小时
-    result = tool._run(Ip="49.85.111.170", Index="email_user_action_2026*")
+    result = tool._run(Ip="159.226.184.138", Index="sangfor_edr*")
     print(result)
 if __name__ == "__main__":
     main()
