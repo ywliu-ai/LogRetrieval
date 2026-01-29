@@ -95,6 +95,21 @@ class Analyzer:
             {"name": "security_system_nginx*",
              "description": "科技云盘、攻坚平台的nginx日志",
             },
+            {"name": "cnic_system_access",
+             "description": "所有系统归属信息",
+             },
+            {"name": "cnic_system_assets",
+             "description": "所有资产归属信息",
+             },
+            {"name": "sangfor_edr*",
+             "description": "终端的EDR日志",
+             },
+            {"name": "znt_comprehensive_result_v4",
+             "description": "经人工研判后的流量告警日志",
+             },
+            {"name": "znt_comprehensive_result_zuduan",
+             "description": "科技云盘、攻坚平台的nginx日志",
+             },
         ]
         documents = []
         for doc in self.docs:
