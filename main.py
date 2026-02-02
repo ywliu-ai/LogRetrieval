@@ -47,7 +47,7 @@ class MainFlow(Flow[MainFlowState]):
             verbose=True
         )
         result = crew.kickoff()
-        return result
+        return result.raw
     
     @listen("QueryRewrite")
     def DataRetrieval(self, RewriteQuery):
@@ -55,19 +55,19 @@ class MainFlow(Flow[MainFlowState]):
         Executor = DataRetrievalExecutorAgent(llm=llm)
         # Manager = DataRetrievalManager(llm=llm)
 
-        retrieval_task = DataRetrievalTask(
-            user_question=RewriteQuery,
-            agent=Executor  # Writer leads, but can delegate research to researcher
-        )
-        crew = Crew(
-            agents=[Executor],
-            tasks=[retrieval_task],
-            process=Process.sequential,  # Manager coordinates everything
-            # manager_llm=llm,  # Specify LLM for manager
-            verbose=True,
-            tracing=True
-        )
-        result = crew.kickoff()
+        # retrieval_task = DataRetrievalTask(
+        #     user_question=RewriteQuery,
+        #     agent=Executor  # Writer leads, but can delegate research to researcher
+        # )
+        # crew = Crew(
+        #     agents=[Executor],
+        #     tasks=[retrieval_task],
+        #     process=Process.sequential,  # Manager coordinates everything
+        #     # manager_llm=llm,  # Specify LLM for manager
+        #     verbose=True,
+        #     tracing=True
+        # )
+        result = Executor.kickoff(RewriteQuery)
         return result
 
 

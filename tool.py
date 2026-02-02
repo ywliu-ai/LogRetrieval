@@ -97,6 +97,8 @@ class LogRetrievalToolInput(BaseModel):
     """Input schema for MyCustomTool."""
     Ip: str = Field(..., description="目标IP地址")
     Index: str = Field(..., description="ELK索引名称")
+    Url: str = Field(..., description="ELK集群地址")
+    Account: str = Field(..., description="用户账号")
     StartTime: Optional[str] = Field(None, description="查询开始时间，格式为YYYY-MM-DD HH:MM:SS，默认为过去24小时")
     EndTime: Optional[str] = Field(None, description="查询结束时间，格式为YYYY-MM-DD HH:MM:SS，默认为当前时间")
     
@@ -155,7 +157,7 @@ class LogRetrievalBasedOnIp(BaseTool):
 
         return markdown
 
-    def _run(self, Ip: str, Index: str, StartTime: Optional[str] = None, EndTime: Optional[str] = None) -> str:
+    def _run(self, Ip: str, Index: str, Url: str, Account: str, StartTime: Optional[str] = None, EndTime: Optional[str] = None) -> str:
         #url = "http://159.226.16.247:9200/"
         #print("Using Elasticsearch username:", elasticsearch_usr)
         #print("Using Elasticsearch password:", elasticsearch_pwd)

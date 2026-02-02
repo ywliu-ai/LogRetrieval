@@ -170,7 +170,7 @@ class Analyzer:
 
 def main():
     analyzer = Analyzer()
-    question = "我想查询ARP系统的用户行为日志，应该使用哪个索引呢？"
+    question = "提取ip为114.232.203.231在2026年1月27日通行证系统中的行为日志"
     result = analyzer.analyze(question)
     print(result)
 
