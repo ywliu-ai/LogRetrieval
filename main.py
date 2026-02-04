@@ -1,9 +1,9 @@
 import agent
 from rag import Analyzer
-from crewai import Crew, Process
+from crewai import Crew, Process, Task
 from crewai.flow.flow import Flow, listen, start, router
-from agent import QueryRewriterAgent, DataRetrievalEngineerAgent, DataRetrievalExecutorAgent, DataRetrievalManager
-from task import QueryRewriteTask, DataRetrievalTask
+from agent import QueryRewriterAgent, DataRetrievalEngineerAgent, DataRetrievalExecutorAgent, DataRetrievalAnalyzer
+from task import QueryRewriteTask, DataRetrievalTask, DataAnalysisTask
 from model import CustomLLM
 import os
 
@@ -51,24 +51,26 @@ class MainFlow(Flow[MainFlowState]):
     
     @listen("QueryRewrite")
     def DataRetrieval(self, RewriteQuery):
-        # Engineer = DataRetrievalEngineerAgent(llm=llm)
-        Executor = DataRetrievalExecutorAgent(llm=llm)
-        # Manager = DataRetrievalManager(llm=llm)
-
-        # retrieval_task = DataRetrievalTask(
-        #     user_question=RewriteQuery,
-        #     agent=Executor  # Writer leads, but can delegate research to researcher
-        # )
-        # crew = Crew(
-        #     agents=[Executor],
-        #     tasks=[retrieval_task],
-        #     process=Process.sequential,  # Manager coordinates everything
-        #     # manager_llm=llm,  # Specify LLM for manager
-        #     verbose=True,
-        #     tracing=True
-        # )
-        
+        Executor = DataRetrievalExecutorAgent(llm=llm) 
         result = Executor.kickoff(RewriteQuery)
+        return result
+
+    @listen("DataRetrieval")
+    def DataRetrievalEngineer(self, ExecutorResult):
+        Analyzer = DataRetrievalAnalyzer(llm=llm)
+        retrieval_task = DataAnalysisTask(
+            retrieval_result=ExecutorResult,
+            agent=Analyzer  # Writer leads, but can delegate research to researcher
+        )
+        crew = Crew(
+            agents=[Analyzer],
+            tasks=[retrieval_task],
+            process=Process.sequential,
+            verbose=True
+        )
+        result = crew.kickoff()
+        return result.raw
+        result = Engineer.kickoff(ExecutorResult)
         return result
 
 

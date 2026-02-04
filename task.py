@@ -44,3 +44,26 @@ class DataRetrievalTask(Task):
         kwargs.setdefault("expected_output", "raw log data")
         kwargs.setdefault("agent", agent)
         super().__init__(*args, **kwargs)
+
+
+class DataAnalysisTask(Task):
+    def __init__(self, *args, retrieval_result="", agent=None, **kwargs):
+        # 先格式化描述字符串
+
+        description = f"""
+        ===================
+        日志检索结果：
+        {retrieval_result}
+        ===================
+            1. 分析日志检索结果，识别其中的关键模式。
+            2. 基于分析结果提供进一步的分析建议。
+            3. 总结关键发现和业务洞察，生成结构化的分析报告。
+            输入：
+            - 日志检索结果数据"""
+        kwargs.setdefault("description", description)
+        kwargs.setdefault("expected_output", """
+        你需要输出：
+        - 分析过程，用<think> </think>标签包裹
+        - 结构化的分析报告，包含发现的问题、建议和总结""")
+        kwargs.setdefault("agent", agent)
+        super().__init__(*args, **kwargs)

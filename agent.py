@@ -159,27 +159,36 @@ class DataRetrievalExecutorAgent(Agent):
         super().__init__(*args, **kwargs)
 
 
-class DataRetrievalManager(Agent):
+class DataRetrievalAnalyzer(Agent):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault(
             "role",
-            "Data Retrieval Task Manager"
+            "Data Retrieval Result Analyzer"
         )
 
         kwargs.setdefault(
             "goal",
             (
-                "Coordinate team efforts and ensure project success through effective delegation and quality control"
+                "分析日志检索结果并提供结构化输出。"
+                "基于日志检索结果提供进一步分析或行动建议。"
+                "总结日志检索结果中的关键发现和洞察。"
             )
         )
 
         kwargs.setdefault(
             "backstory",
                 """
-                    Experienced project manager skilled at delegation and quality control in log retrieval tasks.
+                    你是专业的日志分析专家，擅长分析和解读复杂的系统日志数据。
+                    你的职责包括：
+                    - 深入分析日志检索结果，识别潜在问题和异常模式
+                    - 提供清晰、结构化的分析报告
+                    - 基于数据分析提出可行的解决方案和优化建议
+                    - 总结关键发现，帮助团队快速定位和解决问题
+                    
+                    你具备丰富的系统运维经验和故障排查能力，
+                    能够从海量日志数据中提取有价值的业务洞察。
                 """
         )
-        kwargs.setdefault("allow_delegation", True)
         kwargs.setdefault("verbose", True)
 
         super().__init__(*args, **kwargs)
